@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 	"io/ioutil"
 	"log"
+	"path/filepath"
 )
 
 type AppContext struct {
@@ -15,19 +16,26 @@ type AppContext struct {
 }
 
 type conf struct {
-	DbPort     string `yaml:db_host`
-	DbName     string `yaml:db_port`
-	DbUser     string `yaml:db_name`
-	DbHost     string `yaml:db_user`
-	DbPassword string `yaml:db_password`
+	DbConf struct {
+		DbPort     string `yaml:"db_port"`
+		DbName     string `yaml:"db_name"`
+		DbUser     string `yaml:"db_user"`
+		DbHost     string `yaml:"db_host"`
+		DbPassword string `yaml:"db_password"`
+	} `yaml:"dbConf"`
 }
 
 func getConf(env string) *conf {
-	yamlFile, err := ioutil.ReadFile("conf/" + env + ".yaml")
+	filePath, err := filepath.Abs("conf/" + env + ".yaml")
+	if err != nil {
+		log.Fatalf(err.Error())
+		return nil
+	}
+	yamlFile, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		log.Printf("yamlFile.Get err   #%v ", err)
 	}
-	var c *conf
+	c := &conf{}
 	err = yaml.Unmarshal(yamlFile, c)
 	if err != nil {
 		log.Fatalf("Unmarshal: %v", err)
@@ -43,9 +51,9 @@ func Initiate(env string) *AppContext {
 }
 
 func setupDatabase(env string) *gorm.DB {
-	dbConf := getConf(env)
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
-		dbConf.DbUser, dbConf.DbPassword, dbConf.DbHost, dbConf.DbPort, dbConf.DbName)
+	conf := getConf(env)
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+		conf.DbConf.DbUser, conf.DbConf.DbPassword, conf.DbConf.DbHost, conf.DbConf.DbPort, conf.DbConf.DbName)
 
 	db, err := gorm.Open(postgres.Open(connString), &gorm.Config{})
 
@@ -53,5 +61,6 @@ func setupDatabase(env string) *gorm.DB {
 		log.Fatalln(err)
 	}
 	db.AutoMigrate(&models.TokenData{})
+	db.Exec(fmt.Sprintf("TRUNCATE TABLE %s;", "token_data"))
 	return db
 }

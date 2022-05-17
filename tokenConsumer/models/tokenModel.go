@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/google/uuid"
+	"fmt"
 	"gorm.io/gorm"
 	"time"
 )
@@ -18,22 +18,9 @@ type TokenDataOperations struct {
 	DB *gorm.DB
 }
 
-func (tdo *TokenDataOperations) InsertTokenData(tokenData *TokenData) error {
+func (tdo *TokenDataOperations) BulkInsertTokenData(tokenDataList []TokenData) error {
 	err := tdo.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Take(&TokenData{Token: tokenData.Token}).Scan(&tokenData); err.Error != nil {
-			if err.Error.Error() == "No Record Found" {
-				tokenData.ID = uuid.New().String()
-				tokenData.CreatedAt = time.Now()
-				tokenData.UpdatedAt = time.Now()
-				tx.Create(&tokenData)
-				return nil
-			} else {
-				return err.Error
-			}
-		}
-		if err := tx.Where("id = ?", tokenData.ID).Updates(&TokenData{Count: tokenData.Count + 1, UpdatedAt: time.Now()}); err.Error != nil {
-			return err.Error
-		}
+		tx.CreateInBatches(tokenDataList, 2000)
 		return nil
 	})
 	if err != nil {
@@ -48,4 +35,11 @@ func (tdo *TokenDataOperations) ListTokenData() ([]TokenData, error) {
 		return nil, err.Error
 	}
 	return tokenDataRecords, nil
+}
+
+func (tdo *TokenDataOperations) TruncateTokenData() error {
+	if err := tdo.DB.Exec(fmt.Sprintf("TRUNCATE TABLE %s;", "token_data")); err.Error != nil {
+		return err.Error
+	}
+	return nil
 }
