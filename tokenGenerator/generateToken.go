@@ -1,6 +1,8 @@
 package tokenGenerator
 
 import (
+	"fmt"
+	"log"
 	"math"
 	"math/rand"
 	"os"
@@ -19,20 +21,22 @@ func randSeq(n int, token chan string) {
 	token <- string(b) + "\n"
 }
 
-func generateToken() {
+func GenerateToken() {
+	fmt.Println("Start Generating Tokens")
 	rand.Seed(time.Now().UnixNano())
 	values := make(chan string)
 	for i := 0; i < TOKEN_NUMBER; i++ {
 		go randSeq(TOKEN_LENGTH, values)
 	}
-	f, err := os.OpenFile("../tokens.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	f, err := os.OpenFile("tokenGenerator/tokens.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	for i := 0; i < TOKEN_NUMBER; i++ {
 		if _, err = f.WriteString(<-values); err != nil {
 			panic(err)
 		}
 	}
+	fmt.Println("Tokens generated")
 
 }
