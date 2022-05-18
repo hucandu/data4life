@@ -9,7 +9,7 @@
   ```shell
   make create-pg-user
   ```
-- Create campaign service db if not created already
+- Create db if not created already
   ```shell
   make create-db
   ```
